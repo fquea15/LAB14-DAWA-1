@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga de Archivos</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            background-color: #f8f9fa;
+        }
+
+        h1 {
+            text-align: center;
+            color: #007bff;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-input-container {
+            margin-bottom: 20px;
+        }
+
+        .file-input-group {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        input[type="file"] {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            width: calc(100% - 22px);
+            display: inline-block;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+
+        .remove-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .button-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .file-info {
+            margin-top: 20px;
+        }
+
+        .file-info p {
+            margin: 5px 0;
+        }
+
+        .file-info hr {
+            border: 0.5px solid #ced4da;
+        }
+
+        .alert {
+            position: relative;
+            padding: 15px;
+            background-color: #dc3545;
+            color: white;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .alert-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Carga de Archivos</h1>
+    <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+        <div class="file-input-container" id="file-inputs">
+            <div class="file-input-group">
+                <input type="file" name="files" multiple />
+                <button type="button" class="remove-button" onclick="removeFileInput(this)">X</button>
+            </div>
+        </div>
+        <div class="button-container">
+            <button type="submit">Cargar Archivos</button>
+            <button type="button" onclick="addFileInput()">Agregar Archivo</button>
+        </div>
+    </form>
+
+    <div class="alert-container" id="alerts"></div>
+    <div class="file-info" id="file-info"></div>
+
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInfoDiv = document.getElementById('file-info');
+        const alertsDiv = document.getElementById('alerts');
+        let fileInputCount = 1;
+
+        function addFileInput() {
+            if (fileInputCount < 5) {
+                const fileInputs = document.getElementById('file-inputs');
+                const newInput = document.createElement('div');
+                newInput.className = 'file-input-group';
+                newInput.innerHTML =
+                    `<input type="file" name="files" multiple />
+                                      <button type="button" class="remove-button" onclick="removeFileInput(this)">X</button>`;
+                fileInputs.appendChild(newInput);
+                fileInputCount++;
+            } else {
+                showAlert('No se pueden agregar más de 5 archivos.');
+            }
+        }
+
+        function removeFileInput(button) {
+            const fileInput = button.parentNode;
+            fileInput.parentNode.removeChild(fileInput);
+            fileInputCount--;
+        }
+
+        function validateFile(event) {
+            const file = event.target.files[0];
+            const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4', 'video/quicktime'];
+
+            if (!allowedTypes.includes(file.type)) {
+                showAlert('Tipo de archivo no permitido');
+                event.target.value = '';
+                return;
+            }
+
+            const maxSize = 5 * 1024 * 1024; // 5 MB
+            if (file.size > maxSize) {
+                showAlert('El archivo excede el tamaño máximo permitido');
+                event.target.value = '';
+                return;
+            }
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(form);
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+
+            if (response.ok) {
+                fileInfoDiv.innerHTML = '';
+                const fileInfos = await response.json();
+
+                fileInfos.forEach((fileInfo, index) => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.innerHTML = `<p>Archivo ${index + 1}:</p>
+                               <p><strong>Nombre:</strong> ${fileInfo.filename}</p>
+                               <p><strong>Nombre original:</strong> ${fileInfo.originalname}</p>
+                               <p><strong>Tamaño:</strong> ${fileInfo.size} bytes</p>
+                               <p><strong>Tipo MIME:</strong> ${fileInfo.mimetype}</p>
+                               <hr />`;
+                    fileInfoDiv.appendChild(fileDiv);
+                });
+            } else {
+                showAlert('Error al cargar los archivos.');
+            }
+        });
+
+        function showAlert(message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert';
+            alertDiv.innerHTML = `<span class="alert-close" onclick="closeAlert(this)">X</span>${message}`;
+            alertsDiv.appendChild(alertDiv);
+        }
+
+        function closeAlert(closeButton) {
+            const alert = closeButton.parentNode;
+            alertsDiv.removeChild(alert);
+        }
+
+        document.getElementById('file-inputs').addEventListener('change', validateFile);
+    </script>
+</body>
+
+</html>
